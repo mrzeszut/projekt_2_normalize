@@ -1,0 +1,418 @@
+---
+title: "Plan zajęć i wytyczne"
+author: "Mateusz Rzeszutek"
+date: today
+format:
+  html:
+    toc: true
+    toc-depth: 4
+    toc-location: right
+    toc-title: "Spis treści"
+    number-sections: true
+    number-depth: 4
+    code-fold: show
+    code-summary: "Show the code"
+    code-tools: true
+    code-block-bg: true
+    code-block-border-left: "black"
+    code-line-numbers: false
+    code-copy: true
+    html-math-method: katex
+    smooth-scroll: true
+    anchor-sections: true
+    link-external-icon: true
+    link-external-newwindow: true
+    embed-resources: true
+    self-contained: true
+    theme:
+        light: cosmo
+        dark: darkly
+    fontsize: 1.0em
+    linestretch: 1.5
+execute:
+  warning: false
+  echo: true
+  error: false
+  fig-aling: center
+editor_options: 
+  chunk_output_type: console
+---
+
+<div style="text-align: justify">
+
+***
+
+## Przebieg zajęć
+
+1) Omówienie celu projektu 
+2) Przedstawienie danych 
+3) Podział studentów na zespoły i wybór lidera (4 osobowe)
+4) Utworzenie repozytorium projektu na GitHub i udostępnienie repozytorium prowadzącemu 
+5) Omówienie celu projektu
+6) Dane do projektu 
+7) Normalizacja meteorologiczna - metodologia, zastosowanie  
+8) Duskusja dootyczącą metedyki rozwiązania postawionego problemu badawczego - plan w postaci diagramu
+9) Uzgodnienie podziału obowiązków w grupach przez studentów na podstawie mapy myślowej projektu
+10) Dyskusja dotycząca wyboru predykatorów i tworzenia dodatkowych ważnych predyktorów, wyboru odpowiednich metod estymacji, wnioskowania na podstawie Eksploracyjnej analizy modelu ([EMA](https://ema.drwhy.ai/)) .
+
+
+## Cel Projektu
+
+Czy istnieje zależność pomiędzy wynikami pomiarów liczby cząstek w powietrzu a pomiarami natężenia ruchu. 
+
+::: callout-note
+
+Problem wydaje się prosty, ale jest bardzo złożony i wymaga wykonania szeregu czynności. Zapewne kojarzysz, że pomiary liczby cząstek są wykonywane w przedziałąch średnicy aerodynamicznej. Każdy przedział frakcyjny wymaga sprawdzenia. 
+
+:::
+
+## Cel dydaktyczny
+
+Drugi projekt jest znacznie bardziej złożony meteodologicznie w porównaniu do projektu nr 1. Zakładam, że umiejętności korzystania z omówionych zestawów narzędzi zostały już przyswojone. W tym projekcie główny nacisk jest położony na ich zastosowanie w praktyce oraz usystematyzowanie efektywnej pracy w grupie. 
+
+## Dane pomiarowe
+
+Dane o nazwie `kras` zostały udostępnione w pliku `kras.RData`. 
+
+`kras` - zawiera wyniki pomiarów liczby cząstek w podziale na frakcje, warunków meteorologicznych i parametrów mikrolimatycznych oraz natężenia ruchu. Przedstawione dane są reprezentatywne dla lokalizacji  stacji monitoringu jakości powietrza przy. al. Krasińskiego w Krakowie. 
+
+Pakiety
+
+```{r}
+#| results: hide
+library(tidyverse)
+library(openair)
+library(tidymodels)
+```
+
+Podgląd danych:
+
+```{r}
+#| echo: false
+#| results: hide
+
+load("norm_data.rdata")
+
+kras <- 
+norm_data_fit |> 
+  filter(.mod == "n_1000_RF") |> 
+  relocate(wd_cardinal, .after = wd) |> select(-grimm_pm10, -.mod, -.pred)
+
+save(kras, file = "kras.RData")
+```
+
+```{r}
+load("kras.RData") 
+kras|> glimpse()
+```
+
+Zestaw danych składa się z 25 zmiennych oraz 859 obserwacji. Objaśnienia każdej zmiennej:
+
+  - `date` - Data (krok 1 - godzina)
+  - `trend` - data w postaci numerycznej, format unix
+  - `yday` - dzień wg. kalendarza juliańskiego 
+  - `wday` - dzień tygodnia [1-7]
+  - `hour` - godzina [1-24]
+  - `poj_h` - natężenie ruchu [poj/h]
+  - `blh` - głębokość planetarnej warstwy granicznej []
+  - `ws` - prędkość wiatru [m/s]
+  - `mws` - maksymlan prędkość wiatru [m/s]
+  - `wd` - kierunke wiatru [°]
+  - `wd_cardinal` - kierunke wiatru [kategorie N, NW itd.]
+  - `temp` - temperatura powietrza [°C]
+  - `rh` - wilgotność względna [%]
+  - `pres` - ćiśnienie na poziomie stacji [hPa]
+  - `prec` - opad atmosferyczny [mm/h]
+  - `n_0044` - liczba zliczeń cząstek w od 0.3 do 0.44 µm wyrażona w zliczeniach/cm^3^
+  - `n_0075` - liczba zliczeń cząstek w od 0.44 do 0.75 µm wyrażona w zliczeniach/cm^3^
+  - `n_0100` - liczba zliczeń cząstek w od 0.75 do 1.00 µm wyrażona w zliczeniach/cm^3^
+  - `n_0120` - liczba zliczeń cząstek w od 1.00 do 1.20 µm wyrażona w zliczeniach/cm^3^
+  - `n_0140` - liczba zliczeń cząstek w od 1.20 do 1.40 µm wyrażona w zliczeniach/cm^3^
+  - `n_0200` - liczba zliczeń cząstek w od 1.40 do 2.00 µm wyrażona w zliczeniach/cm^3^
+  - `n_0250` - liczba zliczeń cząstek w od 2.00 do 2.50 µm wyrażona w zliczeniach/cm^3^
+  - `n_0500` - liczba zliczeń cząstek w od 2.50 do 5.00 µm wyrażona w zliczeniach/cm^3^
+  - `n_0750` - liczba zliczeń cząstek w od 5.00 do 7.50 µm wyrażona w zliczeniach/cm^3^
+  - `n_1000` - liczba zliczeń cząstek w od 7.50 do 10.4 µm wyrażona w zliczeniach/cm^3^
+
+
+## Zrozumieć problem - efekt
+
+```{r}
+#| echo: false
+#| results: hide
+
+vars <- c("trend", "wday", "poj_h", "blh", "ws", "wd", "temp", "rh", "prec")
+wek_var <-  norm_data_fit$.mod %>% unique()
+
+norm_data_order <-
+  wek_var %>%
+  map_dfr(
+    ~ norm_data_fit %>%
+      filter(.mod == .x) %>%
+      select(.mod, date, any_of(vars), str_sub(.x, 1, 6), .pred) %>%
+      rename(obs = str_sub(.x, 1, 6), fraction = .mod) %>% 
+      mutate(fraction = str_sub(.x, 1, 6))
+  ) |> 
+  mutate(day = lubridate::wday(x = date, abbr = T, label = T),
+         hour = lubridate::hour(x = date)) |>
+  mutate(
+    day_work = case_when(
+      day == "Mon" ~ "week",
+      day == "Tue" ~ "week",
+      day == "Wed" ~ "week",
+      day == "Thu" ~ "week",
+      day == "Fri" ~ "week",
+      day == "Sat" ~ "weekend",
+      day == "Sun" ~ "weekend"
+    ))
+
+# Obliczamy współczynniki korelacji dla danych 1-godzinnych
+
+colnames(norm_data_order)[12:13] <- c("raw", "norm")
+
+korelacja <- 
+  left_join(
+    norm_data_order |>
+  group_by(fraction) |>
+  summarise(
+    raw  = cor(poj_h, raw,  method = "pearson"),
+    norm = cor(poj_h, norm, method = "pearson")
+  ),
+  norm_data_order |>
+  group_by(fraction, day_work, hour) |>
+  summarise(raw_mean = mean(raw), 
+            norm_mean = mean(norm),
+            poj_h = mean(poj_h)) |> 
+  ungroup() |> 
+  group_by(fraction) |> 
+  summarise(
+    raw_mean  = cor(poj_h, raw_mean, method = "pearson"),
+    norm_mean = cor(poj_h, norm_mean, method = "pearson")
+    )
+  ) |> select(fraction, raw, raw_mean, norm, norm_mean)
+```
+
+**Wyniki współćzynników korelacji przed i po normalizacji**
+
+* raw - dane surowe
+* norm - dane znormalizowane (usunięto wpływ wybranych determinatów poziomów liczby cząstek)
+* mean - dane uśrednione w grupach: godzina, typ dnia
+
+```{r}
+#| fig-height: 3
+#| fig-width: 10
+#| echo: false
+
+tytul <- expression("Pearson Correlation Coefficient")
+
+korelacja |>
+  mutate_if(is.double, round, digits = 2) |>
+  pivot_longer(raw:norm_mean) |>
+  mutate(name = factor(name,
+                       levels = c("norm_mean", "norm", "raw_mean", "raw"))) |>
+  ggplot(aes(x = fraction, y = name)) +
+  geom_tile(aes(fill = value)) +
+  geom_text(aes(label = value, fontface = "bold")) +
+  scale_fill_viridis_c(option = "plasma") +
+  theme_gray() +
+  labs(
+    x = "Fraction PC",
+    title  = tytul,
+    fontface = "bold",
+    y = "Type data"
+  ) +
+  scale_y_discrete(expand = c(0, 0)) +
+  scale_x_discrete(expand = c(0, 0)) +
+  theme(
+    panel.background = element_rect(colour = "white", fill = "white"),
+    legend.margin = ggplot2::margin(-.6, -.6, -.6, -.6, "pt"),
+    legend.title = element_blank()
+  ) -> p ; p
+```
+
+## Normalizacja meteorologiczna - metodologia, zastosowanie  
+
+Cały proces zostanie szczegółowo omówiony na zajęciach. 
+
+### Wczytaj przykładowe dane i modele
+
+```{r}
+load("fit_d_models.rdata")
+
+d_air <- 
+norm_data_fit |> 
+  filter(.mod == "n_1000_RF") |> 
+  select(-.mod, -.pred)
+
+vars <- c("trend", "wday", "poj_h", "blh", "ws", "temp", "rh", "prec", "wd_cardinal")
+```
+
+### Funkcja sample
+
+Prosta funkcja. Wybiera zmienne którym chcemy się przyjrzeć. Przy założeniu, że posotałe zostaną uśrednione. Jak to się dzieje ? Pozostałe predyktory przyporządkowuje losowo. Tylko w zakresie istniejącego zestawu danych. Ta funkcja tworzy jeden taki zestaw danych.
+
+Następna funkcja powiela tą operację `n` - razy.
+
+```{r}
+# Funkcja sample select date
+randomly_sample_meteorology <- function(list_model, df, variables) {
+  
+  tidymodels_prefer()
+  
+  # Randomly sample observations
+  index_rows <- sample(1:nrow(df), replace = FALSE)
+  
+  # Transform data frame to include sampled variables
+  df[variables] <- lapply(df[variables], function(x) x[index_rows])
+  
+  .pred <- predict(list_model, df, type = "numeric")$.pred
+  
+  # Use models to predict and Build data
+  df <- df %>% mutate(.pred = .pred)
+  
+  return(df)
+  
+}
+
+# Test funkcji
+randomly_sample_meteorology(list_model = fit_d_models[["n_1000_RF"]],
+                            df =  d_air,
+                            variables = setdiff(vars,
+                                                c("trend", "poj_h", "wday")))
+```
+
+### Funkcja obliczeń równoległych
+
+```{r}
+# Example fit
+# fit <- best_d_models[[1]]$.workflow[[1]]
+# fit <- fit_d_models[[1]]
+
+# UWAGA MUSI BYĆ KOLUMNA date - nie była definiowana
+library(foreach)
+norm_air <- function(list_model = fit,
+                     df =  d_air,
+                     variables = setdiff(vars, c("trend")),
+                     n =  200,
+                     core = 10) {
+  
+  if (sum(colnames(df) %in% c("date")) != 1) {
+    stop("Brakuje kolumny `date` w obiekcie df")
+  }
+  
+  cl <- parallel::makeCluster(core)
+  doParallel::registerDoParallel(cl)
+  
+  out <- df
+  
+  df <- foreach(
+    i = 1:n,
+    .inorder = FALSE,
+    .combine = "rbind",
+    .packages = c("tidymodels"),
+    .export = c(
+      "randomly_sample_meteorology",
+      "predict",
+      "tidymodels_prefer"
+    )
+  ) %dopar%
+    randomly_sample_meteorology(list_model,
+                                df,
+                                variables)
+  
+  parallel::stopCluster(cl)
+  
+  df <- group_by(df, date) %>%
+    summarise(.pred = mean(.pred, na.rm = TRUE)) %>%
+    ungroup() %>%
+    as_tibble()
+  
+  out <- left_join(out, df, by = "date")
+  
+  return(out)
+}
+```
+
+### Obliczenia
+
+Wykonano przy założeniu, że dwie zmienne definiują oddziaływanie transportu drogowego na jakość powietrza. Pozostałe uznajemy, że są determinantami reprezentujacymi inne uwarunkowania. 
+
+```{r, eval=F, include=T}
+#| label: Normalizacja
+
+norm_data_fit <-
+names(fit_d_models) %>%
+  map_dfr(~  norm_air(
+    list_model = fit_d_models[[.x]],
+    df =  d_air,
+    variables = setdiff(vars, c("poj_h", "wday")),
+    n =  200,
+    core = 10 # UWAGA ile masz procesorów ?
+  ) %>% 
+    mutate(.mod = .x)
+  )
+```
+
+```{r}
+#| echo: false
+
+load("norm_data.rdata")
+```
+
+
+## Projekt ML (w skrócie)
+
+1) Przygotowanie danych i eksploatacyjna analizy danych
+2) Analiza zalezności na podstawie dnaych surowych (podstawowa statystyka)
+3) Dobór predykatorów  
+4) Wybór jednej metody estymacji (teoretyczny - różne metody dla grup)
+4) Opracowanie modeli prognoz liczby cząstek stałych
+5) Ocena modeli 
+6) Eksploracyjna analiza modeli
+7) Wybór najlepszego modelu (czy dokładniejszy znaczy lepszy?)
+8) Trenig ostatecznego modelu
+9) Normalizacja. 
+10) Analiza zalezności na podstawie dnaych surowych i znormalizowanych (porównanie) 
+11) Prezentacja wyników - przygotowana z zastosowaniem technologii quarto
+
+::: callout-note
+
+W tym konkretnym przypadku (etap 8) trenujemy model na podstawie kompletnego zestawu danych bez podziału na zbiór testowy i walidacyjny. Pyatnie, dlaczego ?
+
+:::
+
+## Mapa Myślowa Projektu - metodyka rozwiązania problemu badawczego
+
+Przygotować diagram na zajęciach – praca wspólna interaktywna:
+
+  - [W quarto](https://quarto.org/docs/authoring/diagrams.html) 
+  - [live editor](https://mermaid.live/edit)
+  - [Dokumentacja](https://mermaid.js.org/intro/getting-started.html)
+
+Przykładowe podstawowe problemy: 
+
+  - Zarządzenie projektem z perspektywy ww. problemów. 
+  - Jak odpowiednio wykorzystać dostępne zasoby. 
+  - Równoległość zadań. 
+  - Analiza zalżności (jakie statystyki, czy współczynnik korelacji to najlepszy parametr)
+  - obliczenia rónolegle - jak to zrobić ?
+  - Predykatory, czy wszystkie dostępne są odpowiednie z perspektywy zjawiska fizycznego. Czy potrzebne są inne dodatkowego predykatory. Jak wyznaczyć nowe ważne predykatory ?
+  - Przekształcenia zmiennych – wynikające z zastosowanych metod 
+
+## Oddanie projektu
+
+Po każdych zajęciach prowadzący będzie przekazywał etapy projektu, które powinny zostać wykonane na następne zajęcia.
+
+W ustalony przez prowadzącego terminie następuje oddanie projektu w postaci prezentacji.
+
+Udostępnienie prowadzącemu projektu utworzonego w zdalnym repozytorium, przegląd:
+
+  - problemów, list zadań, etykiet 
+  - Historii zatwierdzeń i żądań ściągania
+
+Przedstawienie w spójny sposób założeń przyjętych w projekcie ML oraz uzyskanych wyników.
+
+Samoocena lidera projektu, oraz uczetników projektu. 
+
+Wskazać jakie problemy pojawiły się w trakcie realizacji projeku, opisać zastosowane rozwiązania. 
+
